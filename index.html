@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>简易图床工具</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f5f5;
+            padding: 15px;
+        }
+        
+        .container {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 1px 5px rgba(0, 0, 0, 0.1);
+            padding: 15px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 15px;
+            font-size: 20px;
+            color: #333;
+        }
+        
+        .upload-area {
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            margin-bottom: 15px;
+        }
+        
+        .upload-icon {
+            font-size: 40px;
+            color: #409eff;
+            margin-bottom: 8px;
+        }
+        
+        .upload-text {
+            margin-bottom: 8px;
+            color: #666;
+            font-size: 15px;
+        }
+        
+        .upload-hint {
+            font-size: 13px;
+            color: #999;
+        }
+        
+        #file-input {
+            display: none;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        button {
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            flex: 1;
+        }
+        
+        .upload-btn {
+            background-color: #409eff;
+            color: white;
+        }
+        
+        .upload-btn:disabled {
+            opacity: 0.6;
+        }
+        
+        .clear-btn {
+            background-color: #f56c6c;
+            color: white;
+        }
+        
+        .progress-container {
+            margin: 10px 0;
+            display: none;
+        }
+        
+        .progress-text {
+            text-align: center;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        
+        .progress-bar {
+            height: 8px;
+            background-color: #ebeef5;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .progress-inner {
+            height: 100%;
+            background-color: #409eff;
+            width: 0%;
+        }
+        
+        .preview-section {
+            margin: 15px 0;
+            display: none;
+        }
+        
+        .preview-title {
+            margin-bottom: 10px;
+            font-size: 15px;
+        }
+        
+        .preview-list {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+        
+        .preview-item {
+            border: 1px solid #eee;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        
+        .preview-image {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+        }
+        
+        .preview-info {
+            padding: 8px;
+            font-size: 12px;
+        }
+        
+        .preview-name {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .preview-status {
+            margin-top: 3px;
+            color: #666;
+        }
+        
+        .preview-status.success {
+            color: #67c23a;
+        }
+        
+        .preview-status.error {
+            color: #f56c6c;
+        }
+        
+        .result-section {
+            display: none;
+            margin-top: 15px;
+        }
+        
+        .result-item {
+            padding: 10px;
+            border: 1px solid #eee;
+            border-radius: 5px;
+            margin-bottom: 8px;
+            word-break: break-all;
+            font-size: 14px;
+        }
+        
+        .copy-btn {
+            background-color: #67c23a;
+            color: white;
+            margin-top: 5px;
+            width: 100%;
+        }
+        
+        .tips {
+            margin-top: 15px;
+            font-size: 13px;
+            color: #999;
+            text-align: center;
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 4px;
+            z-index: 1000;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>简易图床工具</h1>
+        
+        <div class="upload-area" id="upload-area">
+            <div class="upload-icon">📁</div>
+            <div class="upload-text">点击选择图片</div>
+            <div class="upload-hint">支持 JPG、PNG 等常见格式</div>
+            <input type="file" id="file-input" accept="image/*" multiple>
+        </div>
+        
+        <div class="action-buttons">
+            <button class="upload-btn" id="upload-btn" disabled>开始上传</button>
+            <button class="clear-btn" id="clear-btn">清空</button>
+        </div>
+        
+        <div class="progress-container" id="progress-container">
+            <div class="progress-text">上传进度: <span id="progress-text">0%</span></div>
+            <div class="progress-bar">
+                <div class="progress-inner" id="progress-bar"></div>
+            </div>
+        </div>
+        
+        <div class="preview-section" id="preview-section">
+            <div class="preview-title">已选择 <span id="file-count">0</span> 张图片</div>
+            <div class="preview-list" id="preview-list"></div>
+        </div>
+        
+        <div class="result-section" id="result-section">
+            <div class="preview-title">上传结果</div>
+            <div id="result-list"></div>
+            <button class="copy-btn" id="copy-all-btn">复制全部链接</button>
+        </div>
+        
+        <div class="tips">
+            温馨提示：请勿上传违规图片
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const uploadArea = document.getElementById('upload-area');
+            const fileInput = document.getElementById('file-input');
+            const uploadBtn = document.getElementById('upload-btn');
+            const clearBtn = document.getElementById('clear-btn');
+            const previewList = document.getElementById('preview-list');
+            const resultList = document.getElementById('result-list');
+            const copyAllBtn = document.getElementById('copy-all-btn');
+            const progressContainer = document.getElementById('progress-container');
+            const progressBar = document.getElementById('progress-bar');
+            const progressText = document.getElementById('progress-text');
+            const fileCount = document.getElementById('file-count');
+            const previewSection = document.getElementById('preview-section');
+            const resultSection = document.getElementById('result-section');
+            
+            const API_URL = 'https://zhyx-images.eingdong.com/api/index.php/goods/uploadImg';
+            
+            let files = [];
+            let uploadedLinks = [];
+            
+            // 点击上传区域
+            uploadArea.addEventListener('click', function() {
+                fileInput.click();
+            });
+            
+            // 文件选择变化
+            fileInput.addEventListener('change', function() {
+                if (fileInput.files.length > 0) {
+                    // 过滤只保留图片文件
+                    files = Array.from(fileInput.files).filter(file => 
+                        file.type.startsWith('image/')
+                    );
+                    
+                    if (files.length === 0) {
+                        showToast('请选择图片文件');
+                        return;
+                    }
+                    
+                    updateFileList();
+                    uploadBtn.disabled = false;
+                    previewSection.style.display = 'block';
+                    resultSection.style.display = 'none';
+                }
+            });
+            
+            // 更新文件列表
+            function updateFileList() {
+                previewList.innerHTML = '';
+                fileCount.textContent = files.length;
+                
+                files.forEach((file, index) => {
+                    const reader = new FileReader();
+                    
+                    reader.onload = function(e) {
+                        const item = document.createElement('div');
+                        item.className = 'preview-item';
+                        item.innerHTML = `
+                            <img src="${e.target.result}" class="preview-image">
+                            <div class="preview-info">
+                                <div class="preview-name">${file.name}</div>
+                                <div class="preview-status">等待上传</div>
+                            </div>
+                        `;
+                        previewList.appendChild(item);
+                    };
+                    
+                    reader.readAsDataURL(file);
+                });
+            }
+            
+            // 上传按钮点击
+            uploadBtn.addEventListener('click', function() {
+                if (files.length === 0) return;
+                
+                progressContainer.style.display = 'block';
+                progressBar.style.width = '0%';
+                progressText.textContent = '0%';
+                uploadBtn.disabled = true;
+                clearBtn.disabled = true;
+                
+                uploadedLinks = [];
+                resultList.innerHTML = '';
+                
+                let completed = 0;
+                
+                files.forEach((file, index) => {
+                    uploadFile(file, index, function(success, response) {
+                        completed++;
+                        
+                        if (success && response && response.thumb) {
+                            uploadedLinks.push(response.thumb);
+                            addResultItem(response.thumb);
+                            updatePreviewStatus(index, 'success', '上传成功');
+                        } else {
+                            updatePreviewStatus(index, 'error', '上传失败');
+                        }
+                        
+                        const percent = Math.floor((completed / files.length) * 100);
+                        progressBar.style.width = percent + '%';
+                        progressText.textContent = percent + '%';
+                        
+                        if (completed === files.length) {
+                            uploadComplete();
+                        }
+                    });
+                });
+            });
+            
+            // 上传文件函数（修复版）
+            function uploadFile(file, index, callback) {
+                const formData = new FormData();
+                formData.append('file', file);
+                
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', API_URL, true);
+                
+                // 修复：添加必要的请求头
+                xhr.setRequestHeader('Host', 'zhyx-images.eingdong.com');
+                xhr.setRequestHeader('User-Agent', 'Mozilla/5.0');
+                xhr.setRequestHeader('Referer', 'https://servicewechat.com/');
+                
+                xhr.onload = function() {
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        if (response.status === 1) {
+                            callback(true, response);
+                        } else {
+                            console.error('上传失败:', response.msg || '未知错误');
+                            callback(false);
+                        }
+                    } catch (e) {
+                        console.error('解析响应失败:', e);
+                        callback(false);
+                    }
+                };
+                
+                xhr.onerror = function() {
+                    console.error('网络请求失败');
+                    callback(false);
+                };
+                
+                xhr.send(formData);
+            }
+            
+            // 上传完成
+            function uploadComplete() {
+                uploadBtn.disabled = false;
+                clearBtn.disabled = false;
+                
+                if (uploadedLinks.length > 0) {
+                    resultSection.style.display = 'block';
+                    showToast(`上传完成 (成功:${uploadedLinks.length}/${files.length})`);
+                } else {
+                    showToast('上传失败，请重试');
+                }
+            }
+            
+            // 更新预览状态
+            function updatePreviewStatus(index, status, message) {
+                const items = previewList.querySelectorAll('.preview-item');
+                if (items[index]) {
+                    const statusElement = items[index].querySelector('.preview-status');
+                    statusElement.className = 'preview-status ' + status;
+                    statusElement.textContent = message || status;
+                }
+            }
+            
+            // 添加结果项
+            function addResultItem(link) {
+                const item = document.createElement('div');
+                item.className = 'result-item';
+                item.innerHTML = `
+                    ${link}
+                    <button class="copy-btn" data-link="${link}" style="margin-top:5px">复制链接</button>
+                `;
+                resultList.appendChild(item);
+                
+                // 添加复制事件
+                item.querySelector('button').addEventListener('click', function() {
+                    copyToClipboard(link);
+                    showToast('链接已复制');
+                });
+            }
+            
+            // 清空按钮
+            clearBtn.addEventListener('click', function() {
+                files = [];
+                uploadedLinks = [];
+                fileInput.value = '';
+                uploadBtn.disabled = true;
+                previewList.innerHTML = '';
+                resultList.innerHTML = '';
+                fileCount.textContent = '0';
+                progressContainer.style.display = 'none';
+                previewSection.style.display = 'none';
+                resultSection.style.display = 'none';
+            });
+            
+            // 复制全部链接
+            copyAllBtn.addEventListener('click', function() {
+                if (uploadedLinks.length > 0) {
+                    copyToClipboard(uploadedLinks.join('\n'));
+                    showToast('已复制全部链接');
+                } else {
+                    showToast('没有可复制的链接');
+                }
+            });
+            
+            // 复制到剪贴板
+            function copyToClipboard(text) {
+                const input = document.createElement('textarea');
+                input.value = text;
+                document.body.appendChild(input);
+                input.select();
+                document.execCommand('copy');
+                document.body.removeChild(input);
+            }
+            
+            // 显示提示
+            function showToast(message) {
+                const toast = document.createElement('div');
+                toast.className = 'toast';
+                toast.textContent = message;
+                document.body.appendChild(toast);
+                
+                setTimeout(function() {
+                    document.body.removeChild(toast);
+                }, 2000);
+            }
+        });
+    </script>
+</body>
+</html>
